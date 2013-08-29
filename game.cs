@@ -11,11 +11,10 @@ enum Colour
     White
 }
 
-class Card
+struct Card
 {
     public readonly int Colour;
     public readonly int Number;
-    public Card() { }
     public Card(int colour, int number)
     {
         Colour = colour;
@@ -24,6 +23,25 @@ class Card
     public override string ToString()
     {
         return string.Format("[{0} {1}]", ((Colour)Colour).ToString(), Number);
+    }
+    public override bool Equals(object obj)
+    {
+        if (obj is Card)
+            return false;
+        Card other = (Card)obj;
+        return this == other;
+    }
+    public static bool operator ==(Card a, Card b)
+    {
+        return a.Colour == b.Colour && a.Number == b.Number;
+    }
+    public static bool operator !=(Card a, Card b)
+    {
+        return !(a == b);
+    }
+    public override int GetHashCode()
+    {
+        return Colour.GetHashCode() * 23 + Number.GetHashCode();
     }
 }
 
@@ -129,7 +147,10 @@ class Game
         public int ActualPlayerId { get; private set; }
         public IReadOnlyList<Card> GetHand(int player)
         {
-            return game_.hands_[player - 1];
+            int requested_player = ActualPlayer(player, ActualPlayerId);
+            if (requested_player == ActualPlayerId)
+                throw new Exception("Cheating! Can't access own hand");
+            return game_.hands_[requested_player];
         }
         public int Clues
         {
