@@ -41,6 +41,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BasicPlayer.cs" />
     <Compile Include="StupidPlayer.cs" />
     <Compile Include="game.cs" />
     <Compile Include="Program.cs" />

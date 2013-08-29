@@ -18,7 +18,7 @@ namespace Hanabi
             {
                 Game g = new Game(seeder.Next(), NumGames == 1);
                 for (int j = 0; j < 4; j++)
-                    g.AddPlayer(new StupidPlayer());
+                    g.AddPlayer(new BasicPlayer());
                 int score = g.Play();
                 scores[score]++;
                 total += score;
