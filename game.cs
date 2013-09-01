@@ -91,14 +91,17 @@ class ActionResult
     // Laaazzzy
     public readonly Card Card;
     public readonly bool Accepted;
+    public readonly bool NewCard;
     public readonly IReadOnlyList<int> SelectedCards;
-    public ActionResult(Card card)
+    public ActionResult(Card card, bool new_card)
     {
         Card = card;
+        NewCard = new_card;
     }
-    public ActionResult(Card card, bool accepted)
+    public ActionResult(Card card, bool accepted, bool new_card)
     {
         Card = card;
+        NewCard = new_card;
         Accepted = accepted;
     }
     public ActionResult(IReadOnlyList<int> selected)
@@ -115,7 +118,6 @@ interface IPlayer
     Action RequestAction();
 
     void NotifyAction(int fromPlayer, Action action, ActionResult result);
-
 }
 
 
@@ -151,6 +153,10 @@ class Game
             if (requested_player == ActualPlayerId)
                 throw new Exception("Cheating! Can't access own hand");
             return game_.hands_[requested_player];
+        }
+        public int CardsInHand
+        {
+            get { return game_.hands_[ActualPlayerId].Count; }
         }
         public int Clues
         {
@@ -298,6 +304,7 @@ class Game
         {
             Action act = players_[current_player].RequestAction();
             ActionResult result = null;
+            Card? new_card = null;
             switch (act.Type)
             {
                 case ActionType.Play:
@@ -314,7 +321,7 @@ class Game
                                 return 25; // Won!
                             if (fireworks_[card.Colour] == 5 && Clues < MaxClues)
                                 Clues++;
-                            result = new ActionResult(card, true);
+                            result = new ActionResult(card, true, deck_.Count > 0);
                         }
                         else
                         {
@@ -323,12 +330,12 @@ class Game
                             discards_.Add(card);
                             if (Lives == 0)
                                 return 0; // Died!
-                            result = new ActionResult(card, false);
+                            result = new ActionResult(card, false, deck_.Count > 0);
                         }
                         if (deck_.Count > 0)
                         {
-                            Card new_card = DealOneCard();
-                            hands_[current_player].Add(new_card);
+                            new_card = DealOneCard();
+                            hands_[current_player].Add(new_card.Value);
                             Log(" Received card {0}", new_card);
                         }
                     }
@@ -343,11 +350,11 @@ class Game
                         Log("Player {0} discarded {1}", current_player, card);
                         if (deck_.Count > 0)
                         {
-                            Card new_card = DealOneCard();
-                            hands_[current_player].Add(new_card);
+                            new_card = DealOneCard();
+                            hands_[current_player].Add(new_card.Value);
                             Log(" Received card {0}", new_card);
                         }
-                        result = new ActionResult(card);
+                        result = new ActionResult(card, deck_.Count > 0);
                     }
                     break;
                 case ActionType.Clue:
