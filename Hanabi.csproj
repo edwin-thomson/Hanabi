@@ -42,6 +42,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BasicPlayer.cs" />
+    <Compile Include="CardKnowledge.cs" />
+    <Compile Include="TrackingPlayer.cs" />
     <Compile Include="StupidPlayer.cs" />
     <Compile Include="game.cs" />
     <Compile Include="Program.cs" />
