@@ -190,6 +190,37 @@ class PossibleCard
             stale_knowledge_ = true;
         return new_info;
     }
+    public bool SetIsOneOf(IEnumerable<Card> cards)
+    {
+        bool new_info = false;
+        for (int i = 0; i < 5; i++)
+        {
+            for (int j = 0; j < 5; j++)
+            {
+                if (cards.Contains(new Card(i, j + 1)))
+                    continue;
+                if (possible_[i][j])
+                {
+                    new_info = true;
+                    possible_[i][j] = false;
+                }
+            }
+        }
+        return new_info;
+    }
+    public bool SetIsNotOneOf(IEnumerable<Card> cards)
+    {
+        bool new_info = false;
+        foreach (Card c in cards)
+        {
+            if (possible_[c.Colour][c.Number - 1])
+            {
+                new_info = true;
+                possible_[c.Colour][c.Number - 1] = false;
+            }
+        }
+        return new_info;
+    }
     public bool EliminateColour(int colour)
     {
         bool new_info = false;
@@ -245,6 +276,21 @@ class PossibleCard
                 return true;
         }
         return false;
+    }
+    public bool MustBeIn(IEnumerable<Card> cards)
+    {
+        for (int i = 0; i < 5; i++)
+        {
+            for (int j = 0; j < 5; j++)
+            {
+                if (possible_[i][j])
+                {
+                    if (!cards.Contains(new Card(i, j + 1)))
+                        return false;
+                }
+            }
+        }
+        return true;
     }
     /*
     public bool SeenCard(Card card)
@@ -331,5 +377,21 @@ class PossibleCard
     }
 
 
+    public override string ToString()
+    {
+        var sb = new System.Text.StringBuilder();
+        for (int i = 0; i < 5;i++)
+        {
+            sb.Append("\n|");
+            for (int j = 0; j < 5; j++)
+                if (possible_[i][j])
+                    sb.Append('0');
+                else
+                    sb.Append('.');
+            sb.Append("|");
+        }
+        sb.Append("\n");
+        return sb.ToString();
+    }
 
 }

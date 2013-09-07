@@ -26,7 +26,7 @@ struct Card
     }
     public override bool Equals(object obj)
     {
-        if (obj is Card)
+        if (!(obj is Card))
             return false;
         Card other = (Card)obj;
         return this == other;
@@ -154,6 +154,10 @@ class Game
                 throw new Exception("Cheating! Can't access own hand");
             return game_.hands_[requested_player];
         }
+        public List<Card> DEBUG_GetOwnHand
+        {
+            get { return game_.hands_[ActualPlayerId]; }
+        }
         public int CardsInHand
         {
             get { return game_.hands_[ActualPlayerId].Count; }
@@ -182,6 +186,11 @@ class Game
         {
             get { return game_.deck_.Count; }
         }
+        public void Log(string text, params object[] args)
+        {
+            string prefix = string.Format("P{0}: ", ActualPlayerId);
+            game_.Log(prefix + text, args);
+        }
     }
 
 
@@ -193,6 +202,7 @@ class Game
     List<List<Card>> hands_;
 
     System.Random rng_;
+    int seed_;
 
     public int Clues { get; private set; }
     public const int MaxClues = 8;
@@ -220,6 +230,7 @@ class Game
         discards_ = new List<Card>();
         fireworks_ = new List<int>();
 
+        seed_ = seed;
         rng_ = new System.Random(seed);
         log_ = logging;
 
@@ -348,13 +359,14 @@ class Game
                         Card card = hands_[current_player][act.Card];
                         hands_[current_player].RemoveAt(act.Card);
                         Log("Player {0} discarded {1}", current_player, card);
+                        result = new ActionResult(card, deck_.Count > 0);
                         if (deck_.Count > 0)
                         {
                             new_card = DealOneCard();
                             hands_[current_player].Add(new_card.Value);
                             Log(" Received card {0}", new_card);
                         }
-                        result = new ActionResult(card, deck_.Count > 0);
+                        
                     }
                     break;
                 case ActionType.Clue:
