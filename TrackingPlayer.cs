@@ -285,7 +285,7 @@ class TrackingPlayer : IPlayer
         // Sneak in an unclued action if possible
         for (int i = 0; i < hand_knowledge_[0].Count; i++)
         {
-            if (hand_knowledge_[0][i].MustBeIn(playable_cards_))
+            if (hand_knowledge_[0][i].MustBeIn(playables))
             {
                 view_.Log("Decided to play ix {0}", i);
                 return new Action(ActionType.Play, i);
