@@ -21,6 +21,20 @@ class TrackingPlayer : IPlayer
     List<Card> unsafe_cards_;
     List<Card> useless_cards_;
 
+
+    class Clue
+    {
+        public readonly Action Act;
+        public readonly int TargetIndex;
+        public readonly string Reason;
+        public Clue(Action act, int target_index, string reason)
+        {
+            Act = act;
+            TargetIndex = target_index;
+            Reason = reason;
+        }
+    }
+
     struct PendingPlay
     {
         public readonly int Player;
@@ -302,7 +316,7 @@ class TrackingPlayer : IPlayer
             return MakeDiscardAction(DiscardPriority.Certain);
         }
 
-
+        var possible_clues = new List<Clue>();
         for (int player = 1; player < view_.NumPlayers; player++)
         {
             IReadOnlyList<Card> hand = view_.GetHand(player);
@@ -310,8 +324,11 @@ class TrackingPlayer : IPlayer
             for (int i = 0; i < hand.Count; i++)
             {
                 if (pending_plays_.Contains(new PendingPlay(player, i))) continue;
+                if (hand_knowledge_[player][i].MustBeIn(playables)) continue;
                 if (playables.Contains(hand[i]))
                 {
+                    // Don't bother clueing a card if it's already known to be playable
+                    if (hand_knowledge_[player][i].MustBeIn(playables)) continue;
                     // Candidate card
                     bool number_ok = true;
                     bool colour_ok = true;
@@ -325,21 +342,30 @@ class TrackingPlayer : IPlayer
                     }
                     if (number_ok)
                     {
-                        view_.Log("Giving number clue to ask for play of {0}", hand[i]);
-                        return new Action(player, ClueType.Number, hand[i].Number);
+                        string reason = string.Format("Giving number clue to ask for play of {0}", hand[i]);
+                        possible_clues.Add( new Clue(new Action(player, ClueType.Number, hand[i].Number), i, reason));
                     }
                     if (colour_ok)
                     {
-                        view_.Log("Giving colour clue to ask for play of {0}", hand[i]);
-                        return new Action(player, ClueType.Colour, hand[i].Colour);
+                        string reason = string.Format("Giving colour clue to ask for play of {0}", hand[i]);
+                        possible_clues.Add(new Clue (new Action(player, ClueType.Colour, hand[i].Colour), i, reason));
                     }
                 }
             }
-            if (view_.Clues <= 3)
+            if (view_.Clues <= 2 && player == 1 || view_.Clues == 1 && player == 2)
             {
-                ret = TryDiscardClue(playables, player);
-                if (ret != null) return ret;
+                if (!hand_knowledge_[player].Exists(pc => !pc.CouldBeIn(unsafe_cards_)))
+                {
+                    ret = TryDiscardClue(playables, player);
+                    if (ret != null) return ret;
+                }
             }
+        }
+        if (possible_clues.Count > 0)
+        {
+            Clue clue =  ChooseBestClue(possible_clues);
+            view_.Log(clue.Reason);
+            return clue.Act;
         }
 
         for (int player = 1; player < view_.NumPlayers; player++)
@@ -378,6 +404,43 @@ class TrackingPlayer : IPlayer
         }
         view_.Log("Giving useless number clue");
         return new Action(1, ClueType.Number, number + 1);
+    }
+
+    Clue ChooseBestClue(List<Clue> possible_clues)
+    {
+        Debug.Assert(possible_clues.Count > 0);
+        if (possible_clues.Count == 1)
+            return possible_clues[0];
+
+
+        int[] scores = new int[possible_clues.Count];
+
+        for (int i = 0; i < possible_clues.Count;i++)
+        {
+            Action act = possible_clues[i].Act;
+            Card card = view_.GetHand(act.TargetPlayer)[possible_clues[i].TargetIndex];
+
+            // Strongly prefer giving clues to players without much to do
+            int pending_count = hand_knowledge_[act.TargetPlayer].Count(pc => pc.MustBeIn(playable_cards_));
+            scores[i] -= 1000 * pending_count;
+
+            // Prefer clueing unsafe cards
+            if (unsafe_cards_.Contains(card))
+                scores[i] += 100;
+
+            // Prefer clueing low cards
+            scores[i] -= 10 * card.Number; 
+
+        }
+
+        int best_score = scores.Max();
+        for (int i = 0; i < scores.Length; i++)
+            if (scores[i] == best_score)
+                return possible_clues[i];
+
+        Debug.Assert(false);
+        return possible_clues[0];
+
     }
 
     private Action TryDiscardClue(List<Card> playables, int player)
