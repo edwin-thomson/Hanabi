@@ -99,6 +99,18 @@ class TrackingPlayer : IPlayer
                 ret = ret.Concat(view_.GetHand(i));
         return ret;
     }
+
+    void DEBUG_ValidatePossibilities()
+    {
+        for (int i = 0; i < hand_knowledge_[0].Count; i++)
+            Debug.Assert(hand_knowledge_[0][i].CouldBe(view_.DEBUG_GetOwnHand[i]));
+        for (int player = 1; player < view_.NumPlayers; player++)
+        {
+            for (int i = 0; i < hand_knowledge_[player].Count; i++)
+                Debug.Assert(hand_knowledge_[player][i].CouldBe(view_.GetHand(player)[i]));
+        }
+    }
+
     void MakeDeductionsFromKnowledge()
     {
         /*
@@ -113,9 +125,11 @@ class TrackingPlayer : IPlayer
             }
         }
          */
+        DEBUG_ValidatePossibilities();
         PossibleCard.MakeDeductionsForSet(hand_knowledge_[0], CardsPlayerCanSee(0), Enumerable.Empty<PossibleCard>());
         for (int i = 1; i < view_.NumPlayers; i++)
             PossibleCard.MakeDeductionsForSet(hand_knowledge_[i], CardsPlayerCanSee(i), hand_knowledge_[0]);
+        DEBUG_ValidatePossibilities();
     }
 
 
@@ -140,8 +154,8 @@ class TrackingPlayer : IPlayer
 
             if (action.Type == ActionType.Play && result.Accepted)
             {
-    //            if (view_.ActualPlayerId == 2)
-    //                view_.Log("Play action noticed: P{0}->{1} pending_plays={2}", currentPlayer, action.Card, string.Join(", ", pending_plays_));
+                if (view_.ActualPlayerId == 2)
+                    view_.Log("Play action noticed: P{0}->{1} pending_plays={2}", currentPlayer, action.Card, string.Join(", ", pending_plays_));
                 for (int i = 0; i < pending_plays_.Count; i++)
                 {
                     if (pending_plays_[i].Player == currentPlayer && pending_plays_[i].Index == action.Card)
@@ -156,8 +170,8 @@ class TrackingPlayer : IPlayer
                     if (pending_plays_[i].Player == currentPlayer && pending_plays_[i].Index > action.Card)
                         pending_plays_[i] = new PendingPlay(currentPlayer, pending_plays_[i].Index - 1);
                 }
-  //              if (view_.ActualPlayerId == 2)
-  //                  view_.Log("pending_plays={0}", string.Join(", ", pending_plays_));
+                if (view_.ActualPlayerId == 2)
+                    view_.Log("pending_plays={0}", string.Join(", ", pending_plays_));
 
                 playable_cards_.Remove(result.Card);
                 useless_cards_.Add(result.Card);
@@ -258,8 +272,8 @@ class TrackingPlayer : IPlayer
 
     public Action RequestAction()
     {
-        //       if (view_.ActualPlayerId == 2)
-        //           view_.Log("RequestAction pending_plays={0}", string.Join(", ", pending_plays_));
+               if (view_.ActualPlayerId == 2)
+                   view_.Log("RequestAction pending_plays={0}", string.Join(", ", pending_plays_));
         foreach (PendingPlay pp in MyPendingPlays)
         {
             view_.Log("Told to play ix {0}", pp.Index);
@@ -370,7 +384,7 @@ class TrackingPlayer : IPlayer
         IReadOnlyList<Card> hand = view_.GetHand(player);
         for (int i = 0; i < hand.Count; i++)
         {
-            if (unsafe_cards_.Contains(hand[i]) && !hand_knowledge_[player][i].MustBeIn(unsafe_cards_))
+            if (unsafe_cards_.Contains(hand[i]) && !hand_knowledge_[player][i].MustBeIn(unsafe_cards_) && pending_plays_.Contains(new PendingPlay(player, i)))
             {
                 if (!hand_knowledge_[player][i].CouldBeIn(playables))
                 {
@@ -466,6 +480,7 @@ class TrackingPlayer : IPlayer
               //              view_.Log("handlecluelogic pending_plays={0}", string.Join(", ", pending_plays_));
 
                         hand_knowledge_[action.TargetPlayer][first_ix].SetIsOneOf(playables);
+                        DEBUG_ValidatePossibilities();
                         for (int i = 0; i < first_ix; i++)
                         {
                             // Not actually true - maybe it just couldn't be clued
@@ -481,6 +496,7 @@ class TrackingPlayer : IPlayer
                         view_.Log("I am being told not to discard ix {0}", first_ix);
                     }
                     hand_knowledge_[action.TargetPlayer][first_ix].SetIsOneOf(unsafe_cards_);
+                    DEBUG_ValidatePossibilities();
                 //    for (int i = 0; i < first_ix; i++)
                 //        hand_knowledge_[action.TargetPlayer][i].SetIsNotOneOf(unsafe_cards_);
                 }
@@ -492,6 +508,7 @@ class TrackingPlayer : IPlayer
                     view_.Log("I am being told not to discard ix 0");
                 }
                 hand_knowledge_[action.TargetPlayer][0].SetIsOneOf(unsafe_cards_);
+                DEBUG_ValidatePossibilities();
             }
         }
     }
