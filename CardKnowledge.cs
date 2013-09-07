@@ -21,7 +21,23 @@ class PossibleCard
     int? known_colour_;
     int? known_number_;
 
+    int possibilities_;
+
     bool stale_knowledge_;
+
+    public PossibleCard Clone()
+    {
+        PossibleCard ret = new PossibleCard();
+        for (int i = 0; i < 5; i++)
+        {
+            for (int j = 0; j < 5; j++)
+            {
+                ret.possible_[i][j] = possible_[i][j];
+            }
+        }
+        ret.stale_knowledge_ = true;
+        return ret;
+    }
 
     public bool IsKnownCard(out Card c)
     {
@@ -48,6 +64,14 @@ class PossibleCard
         return known_number_.HasValue;
     }
 
+    public int Possibilities
+    {
+        get
+        {
+            RefreshKnowledge();
+            return possibilities_;
+        }
+    }
 
     public Card? KnownCard
     {
@@ -116,6 +140,7 @@ class PossibleCard
     public PossibleCard()
     {
         possible_ = new bool[5][];
+        possibilities_ = 25;
       //  num_cards_seen_ = new int[5][];
       //  num_colours_seen_ = new int[5];
       //  num_values_seen_ = new int[5];

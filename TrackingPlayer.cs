@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 
@@ -211,29 +212,34 @@ class TrackingPlayer : IPlayer
         
         if (action.Type == ActionType.Clue)
         {
-            if (action.Clue == ClueType.Colour)
-            {
-                for (int i = 0; i < hand_knowledge_[action.TargetPlayer].Count; i++)
-                {
-                    if (result.SelectedCards.Contains(i))
-                        hand_knowledge_[action.TargetPlayer][i].SetColour(action.Value);
-                    else
-                        hand_knowledge_[action.TargetPlayer][i].EliminateColour(action.Value);
-                }
-            }
-            else
-            {
-                for (int i = 0; i < hand_knowledge_[action.TargetPlayer].Count; i++)
-                {
-                    if (result.SelectedCards.Contains(i))
-                        hand_knowledge_[action.TargetPlayer][i].SetNumber(action.Value);
-                    else
-                        hand_knowledge_[action.TargetPlayer][i].EliminateNumber(action.Value);
-                }
-            }
+            ApplyClueToKnowledge(hand_knowledge_[action.TargetPlayer], action, result);
             MakeDeductionsFromKnowledge();
             HandleClueLogic(currentPlayer, action, result);
             MakeDeductionsFromKnowledge();
+        }
+    }
+
+    void ApplyClueToKnowledge(List<PossibleCard> knowledge, Action action, ActionResult result)
+    {
+        if (action.Clue == ClueType.Colour)
+        {
+            for (int i = 0; i < knowledge.Count; i++)
+            {
+                if (result.SelectedCards.Contains(i))
+                    knowledge[i].SetColour(action.Value);
+                else
+                    knowledge[i].EliminateColour(action.Value);
+            }
+        }
+        else
+        {
+            for (int i = 0; i < knowledge.Count; i++)
+            {
+                if (result.SelectedCards.Contains(i))
+                    knowledge[i].SetNumber(action.Value);
+                else
+                    knowledge[i].EliminateNumber(action.Value);
+            }
         }
     }
 
@@ -415,21 +421,84 @@ class TrackingPlayer : IPlayer
 
         int[] scores = new int[possible_clues.Count];
 
-        for (int i = 0; i < possible_clues.Count;i++)
+
+        for (int clue = 0; clue < possible_clues.Count; clue++)
         {
-            Action act = possible_clues[i].Act;
-            Card card = view_.GetHand(act.TargetPlayer)[possible_clues[i].TargetIndex];
+            Action act = possible_clues[clue].Act;
+            var hand = view_.GetHand(act.TargetPlayer);
+            Card card = hand[possible_clues[clue].TargetIndex];
 
             // Strongly prefer giving clues to players without much to do
             int pending_count = hand_knowledge_[act.TargetPlayer].Count(pc => pc.MustBeIn(playable_cards_));
-            scores[i] -= 1000 * pending_count;
+            scores[clue] -= 1000 * pending_count;
 
             // Prefer clueing unsafe cards
             if (unsafe_cards_.Contains(card))
-                scores[i] += 100;
+                scores[clue] += 100;
 
             // Prefer clueing low cards
-            scores[i] -= 10 * card.Number; 
+            scores[clue] -= 10 * card.Number;
+
+            // Prefer number clues
+            if (act.Clue == ClueType.Number)
+                scores[clue] += 10;
+
+            List<Card> rest_of_hand = new List<Card>();
+            List<PossibleCard> other_cards = new List<PossibleCard>();
+            for (int i = 0; i < hand.Count; i++)
+            {
+                if (i != possible_clues[clue].TargetIndex)
+                {
+                    rest_of_hand.Add(hand[i]);
+                    other_cards.Add(hand_knowledge_[act.TargetPlayer][i].Clone());
+                }
+            }
+
+            var playables = GetPlayables();
+            playables.Remove(card);
+
+            int old_num_playable = other_cards.Count(pc => pc.MustBeIn(playables));
+            int old_num_unsafe = other_cards.Count(pc => pc.MustBeIn(unsafe_cards_));
+            int old_num_useless = other_cards.Count(pc => pc.MustBeIn(useless_cards_));
+            int old_num_not_unsafe = other_cards.Count(pc => !pc.CouldBeIn(unsafe_cards_));
+            int old_possibilities = other_cards.Sum(pc => pc.Possibilities);
+
+            List<int> result_ixes = new List<int>();
+
+            for (int i = 0; i < rest_of_hand.Count; i++)
+            {
+                if (act.Clue == ClueType.Colour)
+                {
+                    if (rest_of_hand[i].Colour == act.Value)
+                        result_ixes.Add(i);
+                }
+                else
+                {
+                    if (rest_of_hand[i].Number == act.Value)
+                        result_ixes.Add(i);
+                }
+            }
+            ActionResult result = new ActionResult(new ReadOnlyCollection<int>(result_ixes));
+
+            ApplyClueToKnowledge(other_cards, act, result);
+
+            int new_num_playable = other_cards.Count(pc => pc.MustBeIn(playables));
+            int new_num_unsafe = other_cards.Count(pc => pc.MustBeIn(unsafe_cards_));
+            int new_num_useless = other_cards.Count(pc => pc.MustBeIn(useless_cards_));
+            int new_num_not_unsafe = other_cards.Count(pc => !pc.CouldBeIn(unsafe_cards_));
+            int new_possibilities = other_cards.Sum(pc => pc.Possibilities);
+
+            // Clueing new playable cards is great if we can do it
+            scores[clue] += 2000 * (new_num_playable - old_num_playable);
+
+            scores[clue] += 100 * (new_num_unsafe - old_num_unsafe);
+
+            scores[clue] += 60 * (new_num_useless - old_num_useless);
+
+            scores[clue] += 50 * (new_num_not_unsafe - old_num_not_unsafe);
+
+            scores[clue] += (old_possibilities - new_possibilities);
+
 
         }
 
