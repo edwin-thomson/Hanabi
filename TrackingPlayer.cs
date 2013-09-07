@@ -384,7 +384,7 @@ class TrackingPlayer : IPlayer
         IReadOnlyList<Card> hand = view_.GetHand(player);
         for (int i = 0; i < hand.Count; i++)
         {
-            if (unsafe_cards_.Contains(hand[i]) && !hand_knowledge_[player][i].MustBeIn(unsafe_cards_) && pending_plays_.Contains(new PendingPlay(player, i)))
+            if (unsafe_cards_.Contains(hand[i]) && !hand_knowledge_[player][i].MustBeIn(unsafe_cards_) && !pending_plays_.Contains(new PendingPlay(player, i)))
             {
                 if (!hand_knowledge_[player][i].CouldBeIn(playables))
                 {
