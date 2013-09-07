@@ -265,9 +265,6 @@ class TrackingPlayer : IPlayer
         if (priority == DiscardPriority.High) return null;
 
         return new Action(ActionType.Discard, 0);
-
-
-        return null;
     }
 
     public Action RequestAction()
@@ -353,12 +350,16 @@ class TrackingPlayer : IPlayer
 
         if (view_.Clues < 4)
         {
-            MakeDiscardAction(DiscardPriority.Medium);
+            ret = MakeDiscardAction(DiscardPriority.Medium);
+            if (ret != null)
+                return ret;
         }
 
         if (view_.Clues < 8)
         {
-            MakeDiscardAction(DiscardPriority.Low);
+            ret = MakeDiscardAction(DiscardPriority.Low);
+            if (ret != null)
+                return ret;
         }
 
 
