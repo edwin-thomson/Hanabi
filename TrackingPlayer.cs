@@ -277,7 +277,7 @@ class TrackingPlayer : IPlayer
         {
             if (!hand_knowledge_[0][i].MustBeIn(unsafe_cards_))
             {
-                view_.Log("Discarding safe ix {0}", i);
+                view_.Log("Discarding maybe-safe ix {0}", i);
                 return new Action(ActionType.Discard, i);
             }
         }
